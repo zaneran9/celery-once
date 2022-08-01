@@ -4,7 +4,6 @@
 
 from __future__ import absolute_import
 
-
 try:
     from urlparse import urlparse, parse_qsl
 except:
@@ -72,11 +71,22 @@ def get_redis(settings):
     if not redis:
         try:
             from redis import StrictRedis
+            from redis.cluster import RedisCluster, ClusterNode
         except ImportError:
             raise ImportError(
                 "You need to install the redis library in order to use Redis"
                 " backend (pip install redis)")
-        redis = StrictRedis(**parse_url(settings['url']))
+        cluster_mode = settings.get('cluster', False)
+        params = parse_url(settings['url'])
+        if not cluster_mode:
+            redis = StrictRedis(**params)
+        else:
+            del params['db']
+            del params['host']
+            del params['port']
+            nodes = [ClusterNode(*items) for items in settings['nodes']]
+            redis = RedisCluster(startup_nodes=nodes)
+
     return redis
 
 
